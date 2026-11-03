@@ -43,9 +43,14 @@ def receive():
 # --- ШРИФТИ ---
 font_win = font.Font(None, 72)
 font_main = font.Font(None, 36)
+
+# --- ANIM ---
+balltrail = []
 # --- ЗОБРАЖЕННЯ ----
 
 # --- ЗВУКИ ---
+
+
 
 # --- ГРА ---
 game_over = False
@@ -91,11 +96,23 @@ while True:
         continue  # Блокує гру після перемоги
 
     if game_state:
+        ballx = game_state["ball"]["x"]
+        bally = game_state["ball"]["y"]
+        balltrail.append((ballx,bally))
+        if len(balltrail) > 15:
+            balltrail.pop(0)
+
         #screen.fill((30, 30, 30))
         screen.blit(backimage,(0,0))
         draw.rect(screen, (0, 255, 0), (20, game_state['paddles']['0'], 20, 100))
         draw.rect(screen, (255, 0, 255), (WIDTH - 40, game_state['paddles']['1'], 20, 100))
-        draw.circle(screen, (255, 255, 255), (game_state['ball']['x'], game_state['ball']['y']), 10)
+        for i, pos in enumerate(balltrail):
+            alpha = int((i / len(balltrail)) * 255)
+            radius = int(3 + (i / len(balltrail)) * 7)
+            trailsurface = Surface((30,30), SRCALPHA)
+            draw.circle(trailsurface, (0,150,255, alpha), (15,15), radius)
+            screen.blit(trailsurface, (pos[0] - 15, pos[1] - 15))
+        draw.circle(screen, (255, 255, 255), (ballx,bally), 10)
         score_text = font_main.render(f"{game_state['scores'][0]} : {game_state['scores'][1]}", True, (255, 255, 255))
         screen.blit(score_text, (WIDTH // 2 -25, 20))
 
