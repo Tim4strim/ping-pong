@@ -19,6 +19,9 @@ class GameServer:
         self.clients = {0: None, 1: None}
         self.connected = {0: False, 1: False}
         self.lock = threading.Lock()
+
+        self.restartrequest = set()
+
         self.reset_game_state()
         self.sound_event = None
 
@@ -41,6 +44,9 @@ class GameServer:
             while True:
                 data = conn.recv(64).decode()
                 with self.lock:
+                    if "RESTART" in data:
+                        self.restartrequest.add(pid)
+                        print("Someone Wants To Restart")
                     if data == "UP":
                         self.paddles[pid] = max(60, self.paddles[pid] - PADDLE_SPEED)
                     elif data == "DOWN":
@@ -59,7 +65,8 @@ class GameServer:
             "scores": self.scores,
             "countdown": max(self.countdown, 0),
             "winner": self.winner if self.game_over else None,
-            "sound_event": self.sound_event
+            "sound_event": self.sound_event,
+            "restartrequests": len(self.restartrequest)
         }) + "\n"
         for pid, conn in self.clients.items():
             if conn:
@@ -96,10 +103,10 @@ class GameServer:
                     self.scores[0] += 1
                     self.reset_ball()
 
-                if self.scores[0] >= 10:
+                if self.scores[0] >= 1:
                     self.game_over = True
                     self.winner = 0
-                elif self.scores[1] >= 10:
+                elif self.scores[1] >= 1:
                     self.game_over = True
                     self.winner = 1
 
@@ -128,14 +135,24 @@ class GameServer:
     def run(self):
         while True:
             self.accept_players()
-            self.reset_game_state()
-            threading.Thread(target=self.ball_logic, daemon=True).start()
+            while all(self.connected.values()):
+                self.reset_game_state()
+                with self.lock:
+                    self.restartrequest.clear()
+                threading.Thread(target=self.ball_logic, daemon=True).start()
 
-            while not self.game_over and all(self.connected.values()):
-                time.sleep(0.1)
+                while not self.game_over and all(self.connected.values()):
+                    time.sleep(0.1)
+                if not all(self.connected.values()):
+                    break
 
-            print(f"Гравець {self.winner} переміг!")
-            time.sleep(5)
+                while len(self.restartrequest) < 2 and all(self.connected.values()):
+                    self.broadcast_state()
+                    time.sleep(0.1)
+
+                if not all(self.connected.values()):
+                    break
+                print("Both Players Agreed")
 
             # Закриваємо старі з'єднання
             for pid in [0, 1]:

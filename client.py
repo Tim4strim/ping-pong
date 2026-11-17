@@ -54,7 +54,7 @@ balltrail = []
 # --- ЗВУКИ ---
 wallsound = mixer.Sound("musicholder-hitting-stalactites-with-axe-212652.mp3")
 platsound = mixer.Sound("dragon-studio-tennis-ball-hit-386155.mp3")
-
+restartsent = False
 
 # --- ГРА ---
 game_over = False
@@ -69,8 +69,16 @@ while True:
     for e in event.get():
         if e.type == QUIT:
             exit()
+        if e.type == KEYDOWN:
+            if e.key == K_k:
+                if "winner" in game_state and game_state is not None and not restartsent:
+                    client.sendall(b"RESTART")
+                    restartsent = True
 
     if "countdown" in game_state and game_state["countdown"] > 0:
+        you_winner = None
+        restartsent = False
+        balltrail.clear()
         screen.fill((0, 0, 0))
         countdown_text = font.Font(None, 72).render(str(game_state["countdown"]), True, (255, 255, 255))
         screen.blit(countdown_text, (WIDTH // 2 - 20, HEIGHT // 2 - 30))
@@ -95,7 +103,17 @@ while True:
         text_rect = win_text.get_rect(center=(WIDTH // 2, HEIGHT // 2))
         screen.blit(win_text, text_rect)
 
-        text = font_win.render('К - рестарт', True, (255, 215, 0))
+        if not restartsent: 
+            text = font_win.render('К - рестарт', True, (255, 215, 0))
+        else:
+            request = game_state.get("restartrequests",0)
+            if request <2:
+                message = "Waiting For The Second Player"
+            else:
+                message = "Starting A New Game"
+            text = font_main.render(message,True,(255,255,255))
+            readytext = fontsmall.render(f"Players Ready: {request} /2",True,(255,255,255))
+            readytext = readytext.get_rect(center = (WIDTH // 2, HEIGHT // 2 + 200))
         text_rect = text.get_rect(center=(WIDTH // 2, HEIGHT // 2 + 120))
         screen.blit(text, text_rect)
 
